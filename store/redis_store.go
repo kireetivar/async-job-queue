@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -96,4 +97,18 @@ func (s *RedisStore) Dequeue(ctx context.Context, queues []string) (*models.Job,
 	}
 
 	return job, nil
+}
+
+func (s *RedisStore) Ack(ctx context.Context, jobId string) error {
+	jobMap, err := s.client.HGetAll(ctx, "job:"+jobId).Result()
+	if err != nil {
+		return err
+	}
+	if len(jobMap) == 0 {
+		return fmt.Errorf("JobData for jobId %s is empty", jobId) // jobdata was somehow deleted
+	}
+	return s.client.HSet(ctx, "job:"+jobId,
+		"status", int(models.StatusCompleted),
+		"completed_at", time.Now().Format(time.RFC3339),
+	).Err()
 }
