@@ -100,15 +100,56 @@ func (s *RedisStore) Dequeue(ctx context.Context, queues []string) (*models.Job,
 }
 
 func (s *RedisStore) Ack(ctx context.Context, jobId string) error {
-	jobMap, err := s.client.HGetAll(ctx, "job:"+jobId).Result()
-	if err != nil {
-		return err
-	}
-	if len(jobMap) == 0 {
-		return fmt.Errorf("JobData for jobId %s is empty", jobId) // jobdata was somehow deleted
+	if jobId == "" {
+		return fmt.Errorf("jobId must not be empty")
 	}
 	return s.client.HSet(ctx, "job:"+jobId,
 		"status", int(models.StatusCompleted),
 		"completed_at", time.Now().Format(time.RFC3339),
 	).Err()
+}
+
+func (s *RedisStore) Nack(ctx context.Context, job *models.Job) error {
+	if job == nil {
+		return fmt.Errorf("job must not be nil")
+	}
+
+	updateJobMap := map[string]any{
+		"status":      int(models.StatusFailed),
+		"error":       job.Error,
+		"retry_count": job.RetryCount,
+		"max_retries": job.MaxRetries,
+	}
+
+	if job.RetryAt != nil {
+		updateJobMap["retry_at"] = job.RetryAt.Format(time.RFC3339)
+	}
+
+	return s.client.HSet(ctx, "job:"+job.ID, updateJobMap).Err()
+}
+
+func (s *RedisStore) MoveToDeadLetter(ctx context.Context, job *models.Job) error {
+	if job == nil {
+		return fmt.Errorf("job must not be nil")
+	}
+
+	pipe := s.client.TxPipeline()
+
+	job.Status = models.StatusDead
+	jobData := map[string]any{
+		"status":      int(job.Status),
+		"max_retries": job.MaxRetries,
+		"retry_count": job.RetryCount,
+		"error":       job.Error,
+	}
+	if job.RetryAt != nil {
+		jobData["retry_at"] = job.RetryAt.Format(time.RFC3339)
+	}
+
+	pipe.HSet(ctx, "job:"+job.ID, jobData)
+	pipe.LPush(ctx, "dead:"+job.Queue, job.ID)
+
+	_, err := pipe.Exec(ctx)
+
+	return err
 }

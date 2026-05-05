@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/kireetivar/async-job-queue/models"
 	"github.com/kireetivar/async-job-queue/store"
 )
 
@@ -13,16 +12,18 @@ type WorkerPool struct {
 	queues      []string
 	store       store.Store
 	registry    *HandleRegistry
+	retryEngine *RetryEngine
 	wg          sync.WaitGroup
 	stopCh      chan struct{}
 }
 
-func NewWorkerPool(concurrency int, queues []string, store store.Store, r *HandleRegistry) *WorkerPool {
+func NewWorkerPool(concurrency int, queues []string, store store.Store, r *HandleRegistry, retryEngine *RetryEngine) *WorkerPool {
 	return &WorkerPool{
 		concurrency: concurrency,
 		queues:      queues,
 		store:       store,
 		registry:    r,
+		retryEngine: retryEngine,
 		wg:          sync.WaitGroup{},
 		stopCh:      make(chan struct{}),
 	}
@@ -55,13 +56,12 @@ func (wp *WorkerPool) work() {
 			}
 			fn, err := wp.registry.Get(job.Type)
 			if err != nil {
-				continue // job is not registered, incorrect job name
+				wp.retryEngine.Handle(ctx, job, err.Error())
+				continue
 			}
 			err = fn(ctx, job)
 			if err != nil {
-				job.Status = models.StatusFailed
-				job.Error = err.Error()
-				wp.store.Enqueue(ctx, job) // TODO: Should write retry logic here
+				wp.retryEngine.Handle(ctx, job, err.Error()) // handler failed, retry/dead letter
 				continue
 			}
 			wp.store.Ack(ctx, job.ID)
