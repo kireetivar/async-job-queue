@@ -12,4 +12,5 @@ type Store interface {
 	Ack(ctx context.Context, jobId string) error
 	Nack(ctx context.Context, job *models.Job) error
 	MoveToDeadLetter(ctx context.Context, job *models.Job) error
+	ScheduleDue(ctx context.Context) ([]*models.Job, error)
 }
