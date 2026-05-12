@@ -8,7 +8,6 @@ import (
 type JobStatus int
 
 type Job struct {
-	Name        string          `json:"name"`
 	ID          string          `json:"id"`
 	Queue       string          `json:"queue"`
 	Type        string          `json:"type"`

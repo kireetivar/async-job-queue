@@ -182,6 +182,17 @@ func (s *RedisStore) ScheduleDue(ctx context.Context) ([]*models.Job, error) {
 	return jobs, nil
 }
 
+func (s *RedisStore) GetJob(ctx context.Context, jobId string) (*models.Job, error) {
+	jobMap, err := s.client.HGetAll(ctx, "job:"+jobId).Result()
+	if err != nil {
+		return nil, err
+	}
+	if len(jobMap) == 0 {
+		return nil, nil
+	}
+	return parseJobFromMap(jobMap), nil 
+}
+
 func parseJobFromMap(jobMap map[string]string) *models.Job {
 	priority, _ := strconv.Atoi(jobMap["priority"])
 	status, _ := strconv.Atoi(jobMap["status"])
