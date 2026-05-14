@@ -20,6 +20,12 @@ func NewRouter(store store.Store) *Router {
 	{
 		v1.POST("/jobs", r.createJob)
 		v1.GET("/jobs/:id", r.getJob)
+		v1.DELETE("/jobs/:id", r.deleteJob)
+		v1.GET("/queues", r.getQueues)
+		v1.POST("/queues/:name/pause", r.pauseQueue)
+		v1.POST("/queues/:name/resume", r.resumeQueue)
+		v1.GET("/dashboard", r.getHealth)
+		v1.POST("jobs/:id/retry", r.retryJob)
 	}
 
 	return r
@@ -28,4 +34,3 @@ func NewRouter(store store.Store) *Router {
 func (r *Router) Run(addr string) error {
 	return r.engine.Run(addr)
 }
-

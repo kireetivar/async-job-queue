@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kireetivar/async-job-queue/models"
@@ -190,7 +191,91 @@ func (s *RedisStore) GetJob(ctx context.Context, jobId string) (*models.Job, err
 	if len(jobMap) == 0 {
 		return nil, nil
 	}
-	return parseJobFromMap(jobMap), nil 
+	return parseJobFromMap(jobMap), nil
+}
+
+func (s *RedisStore) CancelJob(ctx context.Context, jobId string) error {
+	jobMap, err := s.client.HGetAll(ctx, "job:"+jobId).Result()
+	if err != nil {
+		return err
+	}
+	if len(jobMap) == 0 {
+		return fmt.Errorf("Job %s not found", jobId)
+	}
+
+	pipe := s.client.TxPipeline()
+	pipe.ZRem(ctx, "queue:"+jobMap["queue"], jobId)
+	pipe.HSet(ctx, "job:"+jobId, "status", int(models.StatusFailed))
+	_, err = pipe.Exec(ctx)
+
+	return err
+}
+
+func (s *RedisStore) ListQueues(ctx context.Context) ([]models.QueueInfo, error) {
+	var queueInfoList []models.QueueInfo
+	queues, err := s.client.Keys(ctx, "queue:*").Result()
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range queues {
+		count, err := s.client.ZCard(ctx, v).Result()
+		if err != nil {
+			return queueInfoList, err
+		}
+
+		queueName := strings.TrimPrefix(v, "queue:")
+
+		paused, err := s.client.Exists(ctx, "paused:"+queueName).Result()
+		if err != nil {
+			return queueInfoList, err
+		}
+		queueInfoList = append(queueInfoList, models.QueueInfo{
+			Name:   queueName,
+			Depth:  count,
+			Paused: paused > 0,
+		})
+	}
+
+	return queueInfoList, nil
+}
+
+func (s *RedisStore) PauseQueue(ctx context.Context, name string) error {
+	return s.client.Set(ctx, "paused:"+name, "1", 0).Err()
+}
+
+func (s *RedisStore) ResumeQueue(ctx context.Context, name string) error {
+	return s.client.Del(ctx, "paused:"+name).Err()
+}
+
+func (s *RedisStore) GetQueueStatus(ctx context.Context) ([]models.QueueStats, error) {
+	var queueStatusList []models.QueueStats
+	queues, err := s.client.Keys(ctx, "queue:*").Result()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range queues {
+		pendingCount, err := s.client.ZCard(ctx, v).Result()
+		if err != nil {
+			return queueStatusList, err
+		}
+		name := strings.TrimPrefix(v, "queue:")
+		dead, err := s.client.LLen(ctx, "dead:"+name).Result()
+		if err != nil {
+			return queueStatusList, err
+		}
+		paused, err := s.client.Exists(ctx, "paused:"+name).Result()
+		if err != nil {
+			return queueStatusList, err
+		}
+		queueStatusList = append(queueStatusList, models.QueueStats{
+			Name:    name,
+			Pending: pendingCount,
+			Dead:    dead,
+			Paused:  paused > 0,
+		})
+	}
+	return queueStatusList, nil
 }
 
 func parseJobFromMap(jobMap map[string]string) *models.Job {
