@@ -248,29 +248,31 @@ func (s *RedisStore) ResumeQueue(ctx context.Context, name string) error {
 }
 
 func (s *RedisStore) GetQueueStatus(ctx context.Context) ([]models.QueueStats, error) {
-	var queueStatusList []models.QueueStats
-	queues, err := s.client.Keys(ctx, "queue:*").Result()
-	if err != nil {
-		return nil, err
+	nameSet := make(map[string]bool)
+
+	for _, pattern := range []struct{ prefix, glob string }{
+		{"queue:", "queue:*"},
+		{"dead:", "dead:*"},
+		{"delayed:", "delayed:*"},
+	} {
+		keys, err := s.client.Keys(ctx, pattern.glob).Result()
+		if err != nil {
+			return nil, err
+		}
+		for _, k := range keys {
+			nameSet[strings.TrimPrefix(k, pattern.prefix)] = true
+		}
 	}
 
-	for _, v := range queues {
-		pendingCount, err := s.client.ZCard(ctx, v).Result()
-		if err != nil {
-			return queueStatusList, err
-		}
-		name := strings.TrimPrefix(v, "queue:")
-		dead, err := s.client.LLen(ctx, "dead:"+name).Result()
-		if err != nil {
-			return queueStatusList, err
-		}
-		paused, err := s.client.Exists(ctx, "paused:"+name).Result()
-		if err != nil {
-			return queueStatusList, err
-		}
+	queueStatusList := make([]models.QueueStats, 0, len(nameSet))
+	for name := range nameSet {
+		pending, _ := s.client.ZCard(ctx, "queue:"+name).Result()
+		dead, _ := s.client.LLen(ctx, "dead:"+name).Result()
+		paused, _ := s.client.Exists(ctx, "paused:"+name).Result()
+
 		queueStatusList = append(queueStatusList, models.QueueStats{
 			Name:    name,
-			Pending: pendingCount,
+			Pending: pending,
 			Dead:    dead,
 			Paused:  paused > 0,
 		})
