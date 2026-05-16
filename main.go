@@ -6,9 +6,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/kireetivar/async-job-queue/api"
+	"github.com/kireetivar/async-job-queue/config"
 	"github.com/kireetivar/async-job-queue/models"
 	"github.com/kireetivar/async-job-queue/scheduler"
 	"github.com/kireetivar/async-job-queue/store"
@@ -17,11 +17,12 @@ import (
 )
 
 func main() {
+	cfg := config.Load()
+
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		Protocol: 2,
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
 	})
 
 	rs := store.NewRedisStore(rdb)
@@ -36,18 +37,17 @@ func main() {
 		return nil
 	})
 
-	queues := []string{"email", "mobile"}
-	wp := worker.NewWorkerPool(10, queues, rs, handlerRegistry, &retryEngine)
+	wp := worker.NewWorkerPool(cfg.WorkerCount, cfg.Queues, rs, handlerRegistry, &retryEngine)
 
 	wp.Start()
 
-	sc := scheduler.NewScheduler(rs, 5*time.Second)
+	sc := scheduler.NewScheduler(rs, cfg.ScheduleInterval)
 
 	go sc.Run(context.Background())
 
 	go func() {
 		log.Println(":: Server starting on :8080")
-		if err := router.Run(":8080"); err != nil {
+		if err := router.Run(cfg.ServerPort); err != nil {
 			log.Fatal(err)
 		}
 	}()
