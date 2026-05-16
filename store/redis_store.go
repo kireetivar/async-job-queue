@@ -308,3 +308,8 @@ func parseJobFromMap(jobMap map[string]string) *models.Job {
 	}
 	return job
 }
+
+func (s *RedisStore) IsQueuePaused(ctx context.Context, name string) (bool, error) {
+	val, err := s.client.Exists(ctx, "paused:"+name).Result()
+	return val > 0, err
+}

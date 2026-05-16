@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/kireetivar/async-job-queue/store"
 )
@@ -53,6 +54,18 @@ func (wp *WorkerPool) work() {
 			}
 			if job == nil {
 				continue // BZPopMin timed out, no job avaliable, try again
+			}
+			isPaused, err := wp.store.IsQueuePaused(ctx, job.Queue)
+			if err != nil {
+				continue
+			}
+			if isPaused {
+				err = wp.store.Enqueue(ctx, job)
+				if err != nil {
+					continue
+				}
+				time.Sleep(1 * time.Second)
+				continue
 			}
 			fn, err := wp.registry.Get(job.Type)
 			if err != nil {
