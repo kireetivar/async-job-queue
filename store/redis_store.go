@@ -161,7 +161,11 @@ func (s *RedisStore) ScheduleDue(ctx context.Context) ([]*models.Job, error) {
 			return nil, err
 		}
 		if len(j) > 0 {
-			s.client.ZRem(ctx, v, j)
+			members := make([]any, len(j))
+			for i, id := range j {
+				members[i] = id
+			}
+			s.client.ZRem(ctx, v, members...)
 		}
 		jobIds = append(jobIds, j...)
 	}
