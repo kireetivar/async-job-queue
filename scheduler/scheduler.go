@@ -20,15 +20,9 @@ func (s *Scheduler) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			val, err := s.store.ScheduleDue(ctx)
+			_, err := s.store.ScheduleDue(ctx)
 			if err != nil {
 				continue
-			}
-			for _, v := range val {
-				err := s.store.Enqueue(ctx, v)
-				if err != nil {
-					continue
-				}
 			}
 		case <-s.stopCh:
 			return

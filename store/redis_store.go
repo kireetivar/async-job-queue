@@ -145,43 +145,47 @@ func (s *RedisStore) MoveToDeadLetter(ctx context.Context, job *models.Job) erro
 }
 
 func (s *RedisStore) ScheduleDue(ctx context.Context) ([]*models.Job, error) {
-	var jobIds []string
 	vals, err := s.client.Keys(ctx, "delayed:*").Result()
 	if err != nil {
 		return nil, err
 	}
+
+	var jobs []*models.Job
 	for _, v := range vals {
-		j, err := s.client.ZRangeArgs(ctx, redis.ZRangeArgs{
+		queueName := strings.TrimPrefix(v, "delayed:")
+
+		dueIds, err := s.client.ZRangeArgs(ctx, redis.ZRangeArgs{
 			Key:     v,
 			Start:   0,
 			Stop:    strconv.FormatInt(time.Now().Unix(), 10),
 			ByScore: true,
 		}).Result()
-		if err != nil {
-			return nil, err
-		}
-		if len(j) > 0 {
-			members := make([]any, len(j))
-			for i, id := range j {
-				members[i] = id
-			}
-			s.client.ZRem(ctx, v, members...)
-		}
-		jobIds = append(jobIds, j...)
-	}
-
-	var jobs []*models.Job
-	for _, v := range jobIds {
-		jobMap, err := s.client.HGetAll(ctx, "job:"+v).Result()
-		if err != nil {
-			return nil, err
-		}
-		if len(jobMap) == 0 {
+		if err != nil || len(dueIds) == 0 {
 			continue
 		}
 
-		job := parseJobFromMap(jobMap)
-		jobs = append(jobs, job)
+		for _, id := range dueIds {
+			jobMap, err := s.client.HGetAll(ctx, "job:"+id).Result()
+			if err != nil || len(jobMap) == 0 {
+				continue
+			}
+
+			priority, _ := strconv.Atoi(jobMap["priority"])
+
+			// Atomic: remove from delayed + add to active queue
+			pipe := s.client.TxPipeline()
+			pipe.ZRem(ctx, v, id)
+			pipe.ZAdd(ctx, "queue:"+queueName, redis.Z{
+				Score:  float64(priority),
+				Member: id,
+			})
+			_, err = pipe.Exec(ctx)
+			if err != nil {
+				continue
+			}
+
+			jobs = append(jobs, parseJobFromMap(jobMap))
+		}
 	}
 
 	return jobs, nil
