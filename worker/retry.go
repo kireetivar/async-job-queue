@@ -33,11 +33,6 @@ func (re *RetryEngine) Handle(ctx context.Context, job *models.Job, jobErr strin
 	if job.RetryCount >= job.MaxRetries {
 		return re.store.MoveToDeadLetter(ctx, job)
 	}
-	// retry
-	err := re.store.Nack(ctx, job)
-	if err != nil {
-		return err
-	}
 
 	delay := re.backoffFn(job.RetryCount)
 	retryAt := time.Now().Add(delay)
