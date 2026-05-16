@@ -99,25 +99,6 @@ func (s *RedisStore) Ack(ctx context.Context, jobId string) error {
 	).Err()
 }
 
-func (s *RedisStore) Nack(ctx context.Context, job *models.Job) error {
-	if job == nil {
-		return fmt.Errorf("job must not be nil")
-	}
-
-	updateJobMap := map[string]any{
-		"status":      int(models.StatusFailed),
-		"error":       job.Error,
-		"retry_count": job.RetryCount,
-		"max_retries": job.MaxRetries,
-	}
-
-	if job.RetryAt != nil {
-		updateJobMap["retry_at"] = job.RetryAt.Format(time.RFC3339)
-	}
-
-	return s.client.HSet(ctx, "job:"+job.ID, updateJobMap).Err()
-}
-
 func (s *RedisStore) MoveToDeadLetter(ctx context.Context, job *models.Job) error {
 	if job == nil {
 		return fmt.Errorf("job must not be nil")
