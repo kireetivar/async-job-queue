@@ -194,7 +194,7 @@ func (s *RedisStore) CancelJob(ctx context.Context, jobId string) error {
 
 	pipe := s.client.TxPipeline()
 	pipe.ZRem(ctx, "queue:"+jobMap["queue"], jobId)
-	pipe.HSet(ctx, "job:"+jobId, "status", int(models.StatusFailed))
+	pipe.HSet(ctx, "job:"+jobId, "status", int(models.StatusCancelled))
 	_, err = pipe.Exec(ctx)
 
 	return err

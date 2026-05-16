@@ -31,6 +31,7 @@ const (
 	StatusCompleted
 	StatusFailed
 	StatusDead
+	StatusCancelled
 )
 
 func (s JobStatus) String() string {
