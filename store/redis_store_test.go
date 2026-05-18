@@ -3,6 +3,7 @@ package store_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/kireetivar/async-job-queue/models"
 	"github.com/kireetivar/async-job-queue/store"
@@ -11,20 +12,17 @@ import (
 
 func TestEnqueueDequeue(t *testing.T) {
 	rc := testutil.SetupRedis(t)
-
 	rs := store.NewRedisStore(rc)
+	ctx := context.Background()
 
-	job := models.Job{
+	job := &models.Job{
 		ID:       "job-1",
 		Queue:    "test-queue",
 		Type:     "test-task",
 		Priority: 5,
 	}
 
-	ctx := context.Background()
-
-	err := rs.Enqueue(ctx, &job)
-	if err != nil {
+	if err := rs.Enqueue(ctx, job); err != nil {
 		t.Fatalf("Enqueue Failed: %v", err)
 	}
 
@@ -47,5 +45,80 @@ func TestEnqueueDequeue(t *testing.T) {
 
 	if job.Priority != dequeuedJob.Priority {
 		t.Errorf("Extected Priority: %d, got %d", job.Priority, dequeuedJob.Priority)
+	}
+}
+
+func TestEnqueueDelayed(t *testing.T) {
+	rc := testutil.SetupRedis(t)
+	rs := store.NewRedisStore(rc)
+	ctx := context.Background()
+
+	futureTime := time.Now().Add(1 * time.Hour)
+	job := &models.Job{
+		ID:       "job-1",
+		Queue:    "test-queue",
+		Type:     "test-task",
+		Priority: 5,
+		RunAt:    &futureTime,
+	}
+
+	if err := rs.Enqueue(ctx, job); err != nil {
+		t.Errorf("Enqueue Failed: %v", err)
+	}
+
+	delayedCount, err := rc.ZCard(ctx, "delayed:test-queue").Result()
+	if err != nil {
+		t.Errorf("ScheduleDue Failed, %v", err)
+	}
+	if delayedCount != 1 {
+		t.Errorf("Expected 1 Job in delayed queue, got %d", delayedCount)
+	}
+
+	activeCount, err := rc.ZCard(ctx, "queue:test-queue").Result()
+	if err != nil {
+		t.Errorf("Failed to check active queue: %v", err)
+	}
+	if activeCount != 0 {
+		t.Errorf("Expected 0 jobs in active queue, got %d", activeCount)
+	}
+}
+
+func TestCancelJob(t *testing.T) {
+	rc := testutil.SetupRedis(t)
+	rs := store.NewRedisStore(rc)
+	ctx := context.Background()
+
+	job := &models.Job{
+		ID:       "job-1",
+		Queue:    "test-queue",
+		Type:     "test-task",
+		Priority: 5,
+	}
+
+	if err := rs.Enqueue(ctx, job); err != nil {
+		t.Fatalf("Enqueue Failed: %v", err)
+	}
+
+	if err := rs.CancelJob(ctx, job.ID); err != nil {
+		t.Fatalf("CancelJob Failed: %v", err)
+	}
+
+	canceledJob, err := rs.GetJob(ctx, job.ID)
+	if err != nil {
+		t.Fatalf("Get Job Failed: %v", err)
+	}
+	if canceledJob == nil {
+		t.Fatalf("Expected Job to exist, but got nil")
+	}
+	if canceledJob.Status != models.StatusCancelled {
+		t.Errorf("Expected Status %s, got %s", models.StatusCancelled.String(), canceledJob.Status.String())
+	}
+
+	activeCount, err := rc.ZCard(ctx, "queue:test-queue").Result()
+	if err != nil {
+		t.Errorf("Failed to check active queue: %v", err)
+	}
+	if activeCount != 0 {
+		t.Errorf("Expected Active job count 0, got %d", activeCount)
 	}
 }
