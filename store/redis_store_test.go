@@ -122,3 +122,49 @@ func TestCancelJob(t *testing.T) {
 		t.Errorf("Expected Active job count 0, got %d", activeCount)
 	}
 }
+
+
+func TestMoveToDeadLetter(t *testing.T) {
+	rc := testutil.SetupRedis(t)
+	rs := store.NewRedisStore(rc)
+	ctx := context.Background()
+
+	job := &models.Job{
+		ID:       "job-1",
+		Queue:    "test-queue",
+		Type:     "test-task",
+		Priority: 5,
+	}
+
+	
+	if err := rs.MoveToDeadLetter(ctx, job); err != nil {
+		t.Fatalf("Enqueue Failed: %v", err)
+	}
+
+	activeCount, err := rc.ZCard(ctx, "queue:test-queue").Result()
+	if err != nil {
+		t.Fatalf("Failed to check active queue: %v", err)
+	}
+	if activeCount != 0 {
+		t.Errorf("Expected Active Job count %d, got %d", 0, activeCount)
+	}
+
+	deadCount, err := rc.LLen(ctx, "dead:test-queue").Result()
+	if err != nil {
+		t.Fatalf("Failed to check dead queue: %v", err)
+	}
+	if deadCount != 1 {
+		t.Errorf("Expected Dead job count %d, got %d", 0, deadCount)
+	}
+	
+	deadJob, err := rs.GetJob(ctx, job.ID)
+	if err != nil {
+		t.Fatalf("Failed to get job: %v", err)
+	}
+	if deadJob == nil {
+		t.Fatalf("Expected Job to exist, but got nil")
+	}
+	if deadJob.Status != models.StatusDead {
+		t.Errorf("Expected Job Status %s, got %s", deadJob.Status.String(), models.StatusDead.String())
+	}
+}
