@@ -194,6 +194,7 @@ func (s *RedisStore) CancelJob(ctx context.Context, jobId string) error {
 
 	pipe := s.client.TxPipeline()
 	pipe.ZRem(ctx, "queue:"+jobMap["queue"], jobId)
+	pipe.ZRem(ctx, "delayed:"+jobMap["queue"], jobId)
 	pipe.HSet(ctx, "job:"+jobId, "status", int(models.StatusCancelled))
 	_, err = pipe.Exec(ctx)
 
@@ -287,6 +288,39 @@ func parseJobFromMap(jobMap map[string]string) *models.Job {
 		RetryCount: retryCount,
 		CreatedAt:  createdAt,
 	}
+
+	if completedAt, ok:= jobMap["completed_at"]; ok {
+		if  t, err := time.Parse(time.RFC3339 ,completedAt); err == nil {
+			job.CompletedAt = &t
+		}
+	}
+
+	if runAt, ok := jobMap["run_at"]; ok {
+		if t, err := time.Parse(time.RFC3339, runAt);  err == nil {
+			job.RunAt = &t
+		}
+	}
+
+	if retryAt, ok := jobMap["retry_at"]; ok {
+		if t, err := time.Parse(time.RFC3339, retryAt); err == nil {
+			job.RetryAt = &t
+		}
+	}
+
+	if startedAt, ok := jobMap["started_at"]; ok {
+		if t, err := time.Parse(time.RFC3339, startedAt); err == nil {
+			job.StartedAt = &t
+		}
+	}
+
+	if errorMessage, ok := jobMap["error"]; ok {
+		job.Error = errorMessage
+	}
+
+	if workerId, ok := jobMap["worker_id"]; ok {
+		job.WorkerID = workerId
+	}
+
 	return job
 }
 

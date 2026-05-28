@@ -123,7 +123,6 @@ func TestCancelJob(t *testing.T) {
 	}
 }
 
-
 func TestMoveToDeadLetter(t *testing.T) {
 	rc := testutil.SetupRedis(t)
 	rs := store.NewRedisStore(rc)
@@ -136,7 +135,6 @@ func TestMoveToDeadLetter(t *testing.T) {
 		Priority: 5,
 	}
 
-	
 	if err := rs.MoveToDeadLetter(ctx, job); err != nil {
 		t.Fatalf("Enqueue Failed: %v", err)
 	}
@@ -156,7 +154,7 @@ func TestMoveToDeadLetter(t *testing.T) {
 	if deadCount != 1 {
 		t.Errorf("Expected Dead job count %d, got %d", 0, deadCount)
 	}
-	
+
 	deadJob, err := rs.GetJob(ctx, job.ID)
 	if err != nil {
 		t.Fatalf("Failed to get job: %v", err)
@@ -166,5 +164,42 @@ func TestMoveToDeadLetter(t *testing.T) {
 	}
 	if deadJob.Status != models.StatusDead {
 		t.Errorf("Expected Job Status %s, got %s", deadJob.Status.String(), models.StatusDead.String())
+	}
+}
+
+func TestAck(t *testing.T) {
+	rc := testutil.SetupRedis(t)
+	rs := store.NewRedisStore(rc)
+	ctx := context.Background()
+
+	job := &models.Job{
+		ID:       "job-1",
+		Queue:    "test-queue",
+		Type:     "test-task",
+		Priority: 5,
+	}
+
+	if err := rs.Enqueue(ctx, job); err != nil {
+		t.Fatalf("Enqueue Failed: %v", err)
+	}
+
+	if err := rs.Ack(ctx, job.ID); err != nil {
+		t.Fatalf("Ack Failed: %v", err)
+	}
+
+	ackedJob, err := rs.GetJob(ctx, job.ID)
+	if err != nil {
+		t.Fatalf("GetJob Failed: %v", err)
+	}
+	if ackedJob == nil {
+		t.Fatalf("Expected job to exist, got nil")
+	}
+
+	if ackedJob.Status != models.StatusCompleted {
+		t.Errorf("Expected status %s, got %s", models.StatusCompleted.String(), ackedJob.Status.String())
+	}
+
+	if ackedJob.CompletedAt == nil {
+		t.Errorf("Expected CompleteAt to be set, but got nil")
 	}
 }
