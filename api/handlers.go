@@ -10,14 +10,35 @@ import (
 	"github.com/kireetivar/async-job-queue/models"
 )
 
-type CreateJob struct {
-	Queue      string          `json:"queue" binding:"required"`
-	Type       string          `json:"type" binding:"required"`
-	Payload    json.RawMessage `json:"payload"`
-	Priority   int             `json:"priority"`
-	MaxRetries int             `json:"max_retries"`
+// ErrorResponse represents an error response body.
+type ErrorResponse struct {
+	Error string `json:"error" example:"something went wrong"`
 }
 
+// StatusResponse represents a generic status response body.
+type StatusResponse struct {
+	Status string `json:"status" example:"success"`
+}
+
+type CreateJob struct {
+	Queue      string          `json:"queue" binding:"required" example:"emails"`
+	Type       string          `json:"type" binding:"required" example:"send_welcome_email"`
+	Payload    json.RawMessage `json:"payload" swaggertype:"object"`
+	Priority   int             `json:"priority" example:"5"`
+	MaxRetries int             `json:"max_retries" example:"3"`
+}
+
+// createJob enqueues a new job.
+// @Summary      Enqueue a new job
+// @Description  Create and enqueue a new job to the specified queue with a payload and priority.
+// @Tags         jobs
+// @Accept       json
+// @Produce      json
+// @Param        job  body      CreateJob  true  "Job creation payload"
+// @Success      201  {object}  models.Job
+// @Failure      400  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /jobs [post]
 func (r *Router) createJob(c *gin.Context) {
 	var req CreateJob
 
@@ -48,6 +69,16 @@ func (r *Router) createJob(c *gin.Context) {
 
 }
 
+// getJob inspects a single job by its ID.
+// @Summary      Get a job by ID
+// @Description  Retrieve the full details and current status of a job by its UUID.
+// @Tags         jobs
+// @Produce      json
+// @Param        id   path      string  true  "Job ID (UUID)"
+// @Success      200  {object}  models.Job
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /jobs/{id} [get]
 func (r *Router) getJob(c *gin.Context) {
 	jobId := c.Param("id")
 	job, err := r.store.GetJob(c, jobId)
@@ -63,6 +94,15 @@ func (r *Router) getJob(c *gin.Context) {
 	c.JSON(http.StatusOK, job)
 }
 
+// deleteJob cancels a pending job.
+// @Summary      Cancel a job
+// @Description  Cancel a pending or delayed job by its ID. Removes it from both active and delayed queues.
+// @Tags         jobs
+// @Produce      json
+// @Param        id   path      string  true  "Job ID (UUID)"
+// @Success      204  "No Content"
+// @Failure      500  {object}  ErrorResponse
+// @Router       /jobs/{id} [delete]
 func (r *Router) deleteJob(c *gin.Context) {
 	jobId := c.Param("id")
 	err := r.store.CancelJob(c, jobId)
@@ -74,6 +114,14 @@ func (r *Router) deleteJob(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// getQueues lists all queues and their depth.
+// @Summary      List all queues
+// @Description  Returns a list of all known queues with their current depth and pause status.
+// @Tags         queues
+// @Produce      json
+// @Success      200  {array}   models.QueueInfo
+// @Failure      500  {object}  ErrorResponse
+// @Router       /queues [get]
 func (r *Router) getQueues(c *gin.Context) {
 	queues, err := r.store.ListQueues(c)
 	if err != nil {
@@ -84,6 +132,15 @@ func (r *Router) getQueues(c *gin.Context) {
 	c.JSON(http.StatusOK, queues)
 }
 
+// resumeQueue resumes a paused queue.
+// @Summary      Resume a queue
+// @Description  Resume processing for a previously paused queue. Workers will begin dequeuing jobs again.
+// @Tags         queues
+// @Produce      json
+// @Param        name path      string  true  "Queue name"
+// @Success      200  {object}  StatusResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /queues/{name}/resume [post]
 func (r *Router) resumeQueue(c *gin.Context) {
 	name := c.Param("name")
 	err := r.store.ResumeQueue(c, name)
@@ -95,6 +152,15 @@ func (r *Router) resumeQueue(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
+// pauseQueue pauses a queue.
+// @Summary      Pause a queue
+// @Description  Pause a queue so workers stop dequeuing new jobs from it. In-flight jobs will complete.
+// @Tags         queues
+// @Produce      json
+// @Param        name path      string  true  "Queue name"
+// @Success      200  {object}  StatusResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /queues/{name}/pause [post]
 func (r *Router) pauseQueue(c *gin.Context) {
 	name := c.Param("name")
 	err := r.store.PauseQueue(c, name)
@@ -106,6 +172,14 @@ func (r *Router) pauseQueue(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
+// getHealth returns dashboard queue health stats.
+// @Summary      Queue health dashboard
+// @Description  Returns health statistics for all queues including pending, dead counts and pause status.
+// @Tags         monitoring
+// @Produce      json
+// @Success      200  {array}   models.QueueStats
+// @Failure      500  {object}  ErrorResponse
+// @Router       /dashboard [get]
 func (r *Router) getHealth(c *gin.Context) {
 	queueStatus, err := r.store.GetQueueStatus(c)
 	if err != nil {
@@ -116,6 +190,17 @@ func (r *Router) getHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, queueStatus)
 }
 
+// retryJob manually retries a dead or failed job.
+// @Summary      Retry a job
+// @Description  Reset a dead or failed job and re-enqueue it for processing. Only works on jobs with status dead or failed.
+// @Tags         jobs
+// @Produce      json
+// @Param        id   path      string  true  "Job ID (UUID)"
+// @Success      200  {object}  StatusResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      406  {object}  ErrorResponse  "Job is not in a retryable state"
+// @Failure      500  {object}  ErrorResponse
+// @Router       /jobs/{id}/retry [post]
 func (r *Router) retryJob(c *gin.Context) {
 	jobId := c.Param("id")
 	job, err := r.store.GetJob(c, jobId)

@@ -1,0 +1,335 @@
+basePath: /api/v1
+definitions:
+  api.CreateJob:
+    properties:
+      max_retries:
+        example: 3
+        type: integer
+      payload:
+        type: object
+      priority:
+        example: 5
+        type: integer
+      queue:
+        example: emails
+        type: string
+      type:
+        example: send_welcome_email
+        type: string
+    required:
+    - queue
+    - type
+    type: object
+  api.ErrorResponse:
+    properties:
+      error:
+        example: something went wrong
+        type: string
+    type: object
+  api.StatusResponse:
+    properties:
+      status:
+        example: success
+        type: string
+    type: object
+  models.Job:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      error:
+        type: string
+      id:
+        type: string
+      max_retries:
+        type: integer
+      payload:
+        items:
+          type: integer
+        type: array
+      priority:
+        type: integer
+      queue:
+        type: string
+      retry_at:
+        type: string
+      retry_count:
+        type: integer
+      run_at:
+        type: string
+      started_at:
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.JobStatus'
+        enum:
+        - enqueued
+        - running
+        - completed
+        - failed
+        - dead
+        - cancelled
+        example: enqueued
+      type:
+        type: string
+      worker_id:
+        type: string
+    type: object
+  models.JobStatus:
+    description: Status of a job (enqueued, running, completed, failed, dead, cancelled)
+    enum:
+    - enqueued
+    - running
+    - completed
+    - failed
+    - dead
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - StatusEnqueued
+    - StatusRunning
+    - StatusCompleted
+    - StatusFailed
+    - StatusDead
+    - StatusCancelled
+  models.QueueInfo:
+    properties:
+      depth:
+        type: integer
+      name:
+        type: string
+      paused:
+        type: boolean
+    type: object
+  models.QueueStats:
+    properties:
+      dead:
+        type: integer
+      name:
+        type: string
+      paused:
+        type: boolean
+      pending:
+        type: integer
+    type: object
+host: localhost:9090
+info:
+  contact:
+    name: Kireeti Varma
+    url: https://github.com/kireetivar/async-job-queue
+  description: A distributed async job queue system built with Go and Redis.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Async Job Queue API
+  version: "1.0"
+paths:
+  /dashboard:
+    get:
+      description: Returns health statistics for all queues including pending, dead
+        counts and pause status.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.QueueStats'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Queue health dashboard
+      tags:
+      - monitoring
+  /jobs:
+    post:
+      consumes:
+      - application/json
+      description: Create and enqueue a new job to the specified queue with a payload
+        and priority.
+      parameters:
+      - description: Job creation payload
+        in: body
+        name: job
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreateJob'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Enqueue a new job
+      tags:
+      - jobs
+  /jobs/{id}:
+    delete:
+      description: Cancel a pending or delayed job by its ID. Removes it from both
+        active and delayed queues.
+      parameters:
+      - description: Job ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Cancel a job
+      tags:
+      - jobs
+    get:
+      description: Retrieve the full details and current status of a job by its UUID.
+      parameters:
+      - description: Job ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Job'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get a job by ID
+      tags:
+      - jobs
+  /jobs/{id}/retry:
+    post:
+      description: Reset a dead or failed job and re-enqueue it for processing. Only
+        works on jobs with status dead or failed.
+      parameters:
+      - description: Job ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.StatusResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "406":
+          description: Job is not in a retryable state
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Retry a job
+      tags:
+      - jobs
+  /queues:
+    get:
+      description: Returns a list of all known queues with their current depth and
+        pause status.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.QueueInfo'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: List all queues
+      tags:
+      - queues
+  /queues/{name}/pause:
+    post:
+      description: Pause a queue so workers stop dequeuing new jobs from it. In-flight
+        jobs will complete.
+      parameters:
+      - description: Queue name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.StatusResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Pause a queue
+      tags:
+      - queues
+  /queues/{name}/resume:
+    post:
+      description: Resume processing for a previously paused queue. Workers will begin
+        dequeuing jobs again.
+      parameters:
+      - description: Queue name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.StatusResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Resume a queue
+      tags:
+      - queues
+swagger: "2.0"
+tags:
+- description: All operations related to creating, retrieving, cancelling, and retrying
+    jobs
+  name: jobs
+- description: Operations for managing queues (list, pause, resume)
+  name: queues
+- description: Health checks and dashboard statistics
+  name: monitoring

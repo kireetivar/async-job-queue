@@ -15,8 +15,24 @@ import (
 	"github.com/kireetivar/async-job-queue/store"
 	"github.com/kireetivar/async-job-queue/worker"
 	"github.com/redis/go-redis/v9"
+	_ "github.com/kireetivar/async-job-queue/docs" 
 )
 
+// @title           Async Job Queue API
+// @version         1.0
+// @description     A distributed async job queue system built with Go and Redis.
+// @contact.name    Kireeti Varma
+// @contact.url     https://github.com/kireetivar/async-job-queue
+// @license.name    MIT
+// @license.url     https://opensource.org/licenses/MIT
+// @host            localhost:9090
+// @BasePath        /api/v1
+// @tag.name        jobs
+// @tag.description All operations related to creating, retrieving, cancelling, and retrying jobs
+// @tag.name        queues
+// @tag.description Operations for managing queues (list, pause, resume)
+// @tag.name        monitoring
+// @tag.description Health checks and dashboard statistics
 func main() {
 	cfg := config.Load()
 

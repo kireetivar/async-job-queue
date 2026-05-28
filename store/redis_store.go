@@ -27,7 +27,7 @@ func (s *RedisStore) Enqueue(ctx context.Context, job *models.Job) error {
 		"queue":       job.Queue,
 		"type":        job.Type,
 		"payload":     string(job.Payload),
-		"status":      int(job.Status),
+		"status":      string(job.Status),
 		"priority":    job.Priority,
 		"max_retries": job.MaxRetries,
 		"retry_count": job.RetryCount,
@@ -94,7 +94,7 @@ func (s *RedisStore) Ack(ctx context.Context, jobId string) error {
 		return fmt.Errorf("jobId must not be empty")
 	}
 	return s.client.HSet(ctx, "job:"+jobId,
-		"status", int(models.StatusCompleted),
+		"status", string(models.StatusCompleted),
 		"completed_at", time.Now().Format(time.RFC3339),
 	).Err()
 }
@@ -108,7 +108,7 @@ func (s *RedisStore) MoveToDeadLetter(ctx context.Context, job *models.Job) erro
 
 	job.Status = models.StatusDead
 	jobData := map[string]any{
-		"status":      int(job.Status),
+		"status":      string(job.Status),
 		"max_retries": job.MaxRetries,
 		"retry_count": job.RetryCount,
 		"error":       job.Error,
@@ -195,7 +195,7 @@ func (s *RedisStore) CancelJob(ctx context.Context, jobId string) error {
 	pipe := s.client.TxPipeline()
 	pipe.ZRem(ctx, "queue:"+jobMap["queue"], jobId)
 	pipe.ZRem(ctx, "delayed:"+jobMap["queue"], jobId)
-	pipe.HSet(ctx, "job:"+jobId, "status", int(models.StatusCancelled))
+	pipe.HSet(ctx, "job:"+jobId, "status", string(models.StatusCancelled))
 	_, err = pipe.Exec(ctx)
 
 	return err
@@ -272,17 +272,43 @@ func (s *RedisStore) GetQueueStatus(ctx context.Context) ([]models.QueueStats, e
 
 func parseJobFromMap(jobMap map[string]string) *models.Job {
 	priority, _ := strconv.Atoi(jobMap["priority"])
-	status, _ := strconv.Atoi(jobMap["status"])
 	maxRetries, _ := strconv.Atoi(jobMap["max_retries"])
 	retryCount, _ := strconv.Atoi(jobMap["retry_count"])
 	createdAt, _ := time.Parse(time.RFC3339, jobMap["created_at"])
+
+	var status models.JobStatus
+	statusVal := jobMap["status"]
+	if val, err := strconv.Atoi(statusVal); err == nil {
+		// Backwards compatibility with old Redis integer status format
+		switch val {
+		case 0:
+			status = models.StatusEnqueued
+		case 1:
+			status = models.StatusRunning
+		case 2:
+			status = models.StatusCompleted
+		case 3:
+			status = models.StatusFailed
+		case 4:
+			status = models.StatusDead
+		case 5:
+			status = models.StatusCancelled
+		default:
+			status = models.StatusEnqueued
+		}
+	} else {
+		status = models.JobStatus(statusVal)
+	}
+	if status == "" {
+		status = models.StatusEnqueued
+	}
 
 	job := &models.Job{
 		ID:         jobMap["id"],
 		Queue:      jobMap["queue"],
 		Type:       jobMap["type"],
 		Payload:    []byte(jobMap["payload"]),
-		Status:     models.JobStatus(status),
+		Status:     status,
 		Priority:   priority,
 		MaxRetries: maxRetries,
 		RetryCount: retryCount,

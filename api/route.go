@@ -3,6 +3,8 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/kireetivar/async-job-queue/store"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 type Router struct {
@@ -15,6 +17,9 @@ func NewRouter(store store.Store) *Router {
 		store:  store,
 		engine: gin.Default(),
 	}
+
+	// Swagger UI served at /swagger/index.html
+	r.engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	v1 := r.engine.Group("/api/v1")
 	{
@@ -34,3 +39,4 @@ func NewRouter(store store.Store) *Router {
 func (r *Router) Run(addr string) error {
 	return r.engine.Run(addr)
 }
+

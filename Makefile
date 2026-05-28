@@ -1,6 +1,6 @@
 .DEFAULT_GOAL= build
 
-.PHONY: run fmt vet build clean test
+.PHONY: run fmt vet build clean test swagger
 
 fmt: 
 	go fmt ./...
@@ -8,7 +8,10 @@ fmt:
 vet: fmt
 	go vet ./...
 
-build: vet
+swagger:
+	swag init -g main.go --parseDependency --parseInternal -o ./docs
+
+build: vet swagger
 	go build -o bin/async-job-queue .
 
 run: build
