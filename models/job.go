@@ -46,6 +46,8 @@ func (s JobStatus) String() string {
 		return "failed"
 	case StatusDead:
 		return "dead"
+	case StatusCancelled:
+		return "cancelled"
 	default:
 		return "unknown"
 	}

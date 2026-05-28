@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -32,10 +33,13 @@ func main() {
 	retryEngine := worker.NewRetryEngine(rs, worker.JitterRetryStrategy)
 
 	handlerRegistry := worker.NewHandlerRegistry()
-	handlerRegistry.Register("test_job", func(ctx context.Context, job *models.Job) error {
+	err := handlerRegistry.Register("test_job", func(ctx context.Context, job *models.Job) error {
 		log.Printf("✅ Processing job %s | type: %s | payload: %s", job.ID, job.Type, string(job.Payload))
 		return nil
 	})
+	if err != nil {
+		fmt.Printf("Unable to register handler `test_job`: %v", err)
+	}
 
 	wp := worker.NewWorkerPool(cfg.WorkerCount, cfg.Queues, rs, handlerRegistry, &retryEngine)
 
