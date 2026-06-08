@@ -1,7 +1,9 @@
 package worker
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/kireetivar/async-job-queue/models"
 )
@@ -54,8 +56,39 @@ func TestRetryEngine_Handle(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		mockBackoff := func(attempt int) time.Duration {
+			return 5 * time.Minute
+		}
+
 		t.Run(tt.name, func(t *testing.T) {
-			
+			mockStore := &MockStore{
+				EnqueueError:          tt.enqueuedErr,
+				MoveToDeadLetterError: tt.deadLetterErr,
+			}
+			engine := NewRetryEngine(mockStore, mockBackoff)
+
+			err := engine.Handle(context.Background(), tt.job, tt.jobErr)
+			if (err != nil)  != tt.wantErr {
+				t.Errorf("Handle() error= %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if tt.wantErr {
+				return
+			}
+
+			if mockStore.EnqueueCalled != tt.expectedEnque {
+				t.Errorf("expected EnqueueCalled=%v, got %v", tt.expectedEnque, mockStore.EnqueueCalled)
+			}
+
+			if tt.expectedEnque {
+				if tt.job.Status != models.StatusEnqueued {
+					t.Errorf("expected status %s, got %s", models.StatusEnqueued, tt.job.Status)
+				}
+				if tt.job.RetryAt == nil {
+					t.Errorf("expected retry at to be non-nil")
+				}
+			}
+
 		})
 	}
 }
