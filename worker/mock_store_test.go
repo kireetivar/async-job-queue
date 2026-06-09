@@ -60,6 +60,10 @@ type MockStore struct {
 	IsQueuePausedName   string
 	IsQueuePausedbool   bool
 	IsQueuePausedError  error
+
+	DequeueFunc       func(ctx context.Context, queues []string) (*models.Job, error)
+	AckFunc           func(ctx context.Context, jobId string) error
+	IsQueuePausedFunc func(ctx context.Context, name string) (bool, error)
 }
 
 func (m *MockStore) Enqueue(ctx context.Context, job *models.Job) error {
@@ -69,11 +73,19 @@ func (m *MockStore) Enqueue(ctx context.Context, job *models.Job) error {
 }
 
 func (m *MockStore) Dequeue(ctx context.Context, queues []string) (*models.Job, error) {
-	return nil, nil
+	m.DequeueCalled = true
+	if m.DequeueFunc != nil {
+		return m.DequeueFunc(ctx, queues)
+	}
+	return m.DequeuedJob, m.DequeueError
 }
 
 func (m *MockStore) Ack(ctx context.Context, jobId string) error {
-	return nil
+	m.AckCalled = true
+	if m.AckFunc != nil {
+		return m.AckFunc(ctx, jobId)
+	}
+	return m.AckError
 }
 
 func (m *MockStore) MoveToDeadLetter(ctx context.Context, job *models.Job) error {
@@ -111,5 +123,9 @@ func (m *MockStore) GetQueueStatus(ctx context.Context) ([]models.QueueStats, er
 }
 
 func (m *MockStore) IsQueuePaused(ctx context.Context, name string) (bool, error) {
-	return false, nil
+	m.IsQueuePausedCalled = true
+	if m.IsQueuePausedFunc != nil {
+		return m.IsQueuePausedFunc(ctx, name)
+	}
+	return m.IsQueuePausedbool, m.IsQueuePausedError
 }
