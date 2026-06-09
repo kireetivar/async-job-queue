@@ -13,9 +13,9 @@ import (
 
 func TestWorkerPool_StartStop(t *testing.T) {
 	mockStore := &MockStore{
-		DequeueFunc: func(ctx context.Context, queues []string) (*models.Job, error){
+		DequeueFunc: func(ctx context.Context, queues []string) (*models.Job, error) {
 			return nil, nil
-		}, 
+		},
 	}
 	registry := NewHandlerRegistry()
 	retryEngine := NewRetryEngine(mockStore, JitterRetryStrategy)
@@ -24,14 +24,14 @@ func TestWorkerPool_StartStop(t *testing.T) {
 	wp.Start()
 
 	done := make(chan struct{})
-	go func(){
+	go func() {
 		wp.Stop()
 		close(done)
 	}()
 
 	select {
-	case <- done:
-	case <- time.After(2 * time.Second):
+	case <-done:
+	case <-time.After(2 * time.Second):
 		t.Fatal("Stop() did not return within 2 seconds")
 	}
 }
@@ -41,13 +41,13 @@ func TestWorkerPool_ProcessJob(t *testing.T) {
 	handlerCalled := make(chan struct{})
 
 	mockStore := &MockStore{
-		DequeueFunc: func(ctx context.Context, queues []string)(*models.Job, error){
+		DequeueFunc: func(ctx context.Context, queues []string) (*models.Job, error) {
 			var job *models.Job
 			once.Do(func() {
 				job = &models.Job{
-					ID:   "job-1",
-					Queue:"test-queue",
-					Type: "test-job",
+					ID:      "job-1",
+					Queue:   "test-queue",
+					Type:    "test-job",
 					Payload: json.RawMessage(`{"key":"value"}`),
 				}
 			})
@@ -75,7 +75,7 @@ func TestWorkerPool_ProcessJob(t *testing.T) {
 	}
 	wp.Stop()
 
-	if !mockStore.AckCalled{
+	if !mockStore.AckCalled {
 		t.Errorf("expected Ack to be called")
 	}
 }
@@ -86,11 +86,11 @@ func TestWorkerPool_PausedQueue(t *testing.T) {
 	mockStore := &MockStore{
 		DequeueFunc: func(ctx context.Context, queues []string) (*models.Job, error) {
 			var job *models.Job
-			once.Do(func(){
+			once.Do(func() {
 				job = &models.Job{
-					ID: "job-1",
+					ID:    "job-1",
 					Queue: "test-queue",
-					Type: "test_job",
+					Type:  "test_job",
 				}
 			})
 			if job == nil {
@@ -113,10 +113,10 @@ func TestWorkerPool_PausedQueue(t *testing.T) {
 	retryEngine := NewRetryEngine(mockStore, JitterRetryStrategy)
 	wp := NewWorkerPool(1, []string{"test-queue"}, mockStore, registry, &retryEngine)
 	wp.Start()
-	 
+
 	time.Sleep(200 * time.Millisecond)
 	wp.Stop()
-	
+
 	if !mockStore.EnqueueCalled {
 		t.Error("expected job to be re-enqueued when is queue is paused")
 	}

@@ -68,7 +68,7 @@ func TestRetryEngine_Handle(t *testing.T) {
 			engine := NewRetryEngine(mockStore, mockBackoff)
 
 			err := engine.Handle(context.Background(), tt.job, tt.jobErr)
-			if (err != nil)  != tt.wantErr {
+			if (err != nil) != tt.wantErr {
 				t.Errorf("Handle() error= %v, wantErr %v", err, tt.wantErr)
 			}
 

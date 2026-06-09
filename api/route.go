@@ -39,4 +39,3 @@ func NewRouter(store store.Store) *Router {
 func (r *Router) Run(addr string) error {
 	return r.engine.Run(addr)
 }
-

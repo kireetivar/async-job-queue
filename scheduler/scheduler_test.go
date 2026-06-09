@@ -13,7 +13,7 @@ import (
 type SchedulerMockStore struct {
 	store.Store
 	ScheduleDueCallCount int
-	ScheduleDueErr error
+	ScheduleDueErr       error
 }
 
 func (m *SchedulerMockStore) ScheduleDue(ctx context.Context) ([]*models.Job, error) {
@@ -23,9 +23,9 @@ func (m *SchedulerMockStore) ScheduleDue(ctx context.Context) ([]*models.Job, er
 
 func TestScheduler_Run_CallsScheduleDue(t *testing.T) {
 	mockstore := &SchedulerMockStore{}
-	scheduler := NewScheduler(mockstore, 50 * time.Millisecond)
+	scheduler := NewScheduler(mockstore, 50*time.Millisecond)
 
-	go func(){
+	go func() {
 		scheduler.Run(context.Background())
 	}()
 
@@ -39,31 +39,31 @@ func TestScheduler_Run_CallsScheduleDue(t *testing.T) {
 
 func TestScheduler_Stop(t *testing.T) {
 	mockstore := &SchedulerMockStore{}
-	scheduler := NewScheduler(mockstore, 50 * time.Millisecond)
+	scheduler := NewScheduler(mockstore, 50*time.Millisecond)
 	c := make(chan struct{})
-	
-	go func(){
+
+	go func() {
 		scheduler.Run(context.Background())
 		c <- struct{}{}
 	}()
 
 	scheduler.Stop()
-	
+
 	select {
 	case <-c:
-	case <-time.After(1*time.Second):
+	case <-time.After(1 * time.Second):
 		t.Errorf("expected duration be less than 1 second, got more than 1 second")
 	}
 }
 
-func TestScheduler_ContextCancel (t *testing.T) {
+func TestScheduler_ContextCancel(t *testing.T) {
 	mockstore := &SchedulerMockStore{}
-	scheduler := NewScheduler(mockstore, 50 * time.Millisecond)
+	scheduler := NewScheduler(mockstore, 50*time.Millisecond)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c := make(chan struct{})
-	
-	go func(){
+
+	go func() {
 		scheduler.Run(ctx)
 		c <- struct{}{}
 	}()
@@ -72,7 +72,7 @@ func TestScheduler_ContextCancel (t *testing.T) {
 
 	select {
 	case <-c:
-	case <- time.After(1 * time.Second):
-		t.Errorf("expected Run to exit after context cancel, but it didn't within 1 second")	
+	case <-time.After(1 * time.Second):
+		t.Errorf("expected Run to exit after context cancel, but it didn't within 1 second")
 	}
 }

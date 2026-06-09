@@ -315,14 +315,14 @@ func parseJobFromMap(jobMap map[string]string) *models.Job {
 		CreatedAt:  createdAt,
 	}
 
-	if completedAt, ok:= jobMap["completed_at"]; ok {
-		if  t, err := time.Parse(time.RFC3339 ,completedAt); err == nil {
+	if completedAt, ok := jobMap["completed_at"]; ok {
+		if t, err := time.Parse(time.RFC3339, completedAt); err == nil {
 			job.CompletedAt = &t
 		}
 	}
 
 	if runAt, ok := jobMap["run_at"]; ok {
-		if t, err := time.Parse(time.RFC3339, runAt);  err == nil {
+		if t, err := time.Parse(time.RFC3339, runAt); err == nil {
 			job.RunAt = &t
 		}
 	}

@@ -8,11 +8,11 @@ import (
 )
 
 func TestRegister(t *testing.T) {
-	testHandleFunc := func (ctx context.Context, jobs *models.Job) error { return nil }
+	testHandleFunc := func(ctx context.Context, jobs *models.Job) error { return nil }
 	tests := []struct {
-		name 	string
-		jobType	string
-		fn		HandleFunc
+		name    string
+		jobType string
+		fn      HandleFunc
 		wantErr bool
 	}{
 		{"a valid handler", "test", testHandleFunc, false},
@@ -20,7 +20,7 @@ func TestRegister(t *testing.T) {
 		{"empty jobType", "", testHandleFunc, true},
 		{"a duplicate handler", "test", testHandleFunc, true},
 	}
-	for _, tt := range tests{
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reg := NewHandlerRegistry()
 
@@ -39,12 +39,12 @@ func TestRegister(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	testHandleFunc := func (ctx context.Context, jobs *models.Job) error { return nil }
+	testHandleFunc := func(ctx context.Context, jobs *models.Job) error { return nil }
 	tests := []struct {
-		name			string
-		jobType			string
-		registeredFn 	HandleFunc
-		wantErr 		bool
+		name         string
+		jobType      string
+		registeredFn HandleFunc
+		wantErr      bool
 	}{
 		{"a registered handler", "test", testHandleFunc, false},
 		{"a unregistered handler", "test", nil, true},

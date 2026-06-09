@@ -10,12 +10,12 @@ import (
 
 	"github.com/kireetivar/async-job-queue/api"
 	"github.com/kireetivar/async-job-queue/config"
+	_ "github.com/kireetivar/async-job-queue/docs"
 	"github.com/kireetivar/async-job-queue/models"
 	"github.com/kireetivar/async-job-queue/scheduler"
 	"github.com/kireetivar/async-job-queue/store"
 	"github.com/kireetivar/async-job-queue/worker"
 	"github.com/redis/go-redis/v9"
-	_ "github.com/kireetivar/async-job-queue/docs" 
 )
 
 // @title           Async Job Queue API

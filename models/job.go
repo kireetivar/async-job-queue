@@ -78,5 +78,3 @@ func (s *JobStatus) UnmarshalJSON(b []byte) error {
 
 	return fmt.Errorf("invalid job status: %s", string(b))
 }
-
-
