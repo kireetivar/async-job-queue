@@ -20,6 +20,8 @@ func NewRouter(store store.Store) *Router {
 
 	// Swagger UI served at /swagger/index.html
 	r.engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.engine.GET("/health", r.healthCheck)
+
 
 	v1 := r.engine.Group("/api/v1")
 	{

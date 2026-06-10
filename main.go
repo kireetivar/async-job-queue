@@ -66,7 +66,7 @@ func main() {
 	go sc.Run(context.Background())
 
 	go func() {
-		log.Println(":: Server starting on :8080")
+		log.Printf(":: Server starting on %s", cfg.ServerPort)
 		if err := router.Run(cfg.ServerPort); err != nil {
 			log.Fatal(err)
 		}

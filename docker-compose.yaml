@@ -1,0 +1,38 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  
+  app:
+    build: .
+    ports:
+      - "9090:9090"
+    environment:
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - SERVER_PORT=:9090
+      - WORKER_COUNT=10
+      - QUEUES=emails,mobile
+      - SCHEDULE_INTERNAL_SEC=5
+    depends_on:
+      redis:
+        condition: service_healthy
+    
+  redisinsight:
+    image: redis/redisinsight:latest
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis
+
+volumes:
+  redis_data:

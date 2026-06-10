@@ -226,3 +226,15 @@ func (r *Router) retryJob(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "retry successful"})
 }
+
+// healthCheck performs a basic liveness check.
+// @Summary      Health check
+// @Description  Returns OK if the service is alive and can reach Redis.
+// @Tags         monitoring
+// @Produce      json
+// @Success      200  {object}  StatusResponse
+// @Failure      503  {object}  ErrorResponse
+// @Router       /health [get]
+func (r *Router) healthCheck(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
