@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/kireetivar/async-job-queue/store"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -21,7 +22,7 @@ func NewRouter(store store.Store) *Router {
 	// Swagger UI served at /swagger/index.html
 	r.engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.engine.GET("/health", r.healthCheck)
-
+	r.engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	v1 := r.engine.Group("/api/v1")
 	{

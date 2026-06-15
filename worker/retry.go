@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/kireetivar/async-job-queue/metrics"
 	"github.com/kireetivar/async-job-queue/models"
 	"github.com/kireetivar/async-job-queue/store"
 )
@@ -29,8 +30,10 @@ func (re *RetryEngine) Handle(ctx context.Context, job *models.Job, jobErr strin
 	}
 	job.RetryCount++
 	job.Error = jobErr
+	metrics.JobsRetried.Inc()
 
 	if job.RetryCount >= job.MaxRetries {
+		metrics.JobsDead.Inc()
 		return re.store.MoveToDeadLetter(ctx, job)
 	}
 

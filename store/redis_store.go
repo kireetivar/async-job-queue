@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kireetivar/async-job-queue/metrics"
 	"github.com/kireetivar/async-job-queue/models"
 	"github.com/redis/go-redis/v9"
 )
@@ -54,6 +55,9 @@ func (s *RedisStore) Enqueue(ctx context.Context, job *models.Job) error {
 	}
 
 	_, err := pipe.Exec(ctx)
+	if err == nil {
+		metrics.JobsEnqueued.Inc()
+	}
 	return err
 }
 

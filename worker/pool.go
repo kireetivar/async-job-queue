@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kireetivar/async-job-queue/metrics"
 	"github.com/kireetivar/async-job-queue/store"
 )
 
@@ -67,17 +68,25 @@ func (wp *WorkerPool) work() {
 				time.Sleep(1 * time.Second)
 				continue
 			}
+			metrics.ActiveWorkers.Inc()
 			fn, err := wp.registry.Get(job.Type)
 			if err != nil {
 				wp.retryEngine.Handle(ctx, job, err.Error())
+				metrics.ActiveWorkers.Dec()
 				continue
 			}
+			start := time.Now()
 			err = fn(ctx, job)
+			metrics.JobProcessingDuration.Observe(time.Since(start).Seconds())
 			if err != nil {
 				wp.retryEngine.Handle(ctx, job, err.Error()) // handler failed, retry/dead letter
+				metrics.JobsFailed.Inc()
+				metrics.ActiveWorkers.Dec()
 				continue
 			}
 			wp.store.Ack(ctx, job.ID)
+			metrics.JobsProcessed.Inc()
+			metrics.ActiveWorkers.Dec()
 		}
 	}
 }
