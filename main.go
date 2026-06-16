@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/kireetivar/async-job-queue/api"
 	"github.com/kireetivar/async-job-queue/config"
@@ -50,7 +51,8 @@ func main() {
 
 	handlerRegistry := worker.NewHandlerRegistry()
 	err := handlerRegistry.Register("test_job", func(ctx context.Context, job *models.Job) error {
-		log.Printf("✅ Processing job %s | type: %s | payload: %s", job.ID, job.Type, string(job.Payload))
+		time.Sleep(10 * time.Second)
+		slog.Info("processing job", "job_id", job.ID, "type", job.Type, "payload", string(job.Payload))
 		return nil
 	})
 	if err != nil {
@@ -66,9 +68,10 @@ func main() {
 	go sc.Run(context.Background())
 
 	go func() {
-		log.Printf(":: Server starting on %s", cfg.ServerPort)
+		slog.Info("server starting", "port", cfg.ServerPort)
 		if err := router.Run(cfg.ServerPort); err != nil {
-			log.Fatal(err)
+			slog.Error("server failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -77,11 +80,11 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println(":: Shutting down server...")
+	slog.Info("shutting down server")
 
 	wp.Stop()
 	sc.Stop()
 	rdb.Close()
 
-	log.Print("ShutDown Successful")
+	slog.Info("ShutDown Successful")
 }

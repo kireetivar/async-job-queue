@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -68,10 +69,12 @@ func (wp *WorkerPool) work() {
 				time.Sleep(1 * time.Second)
 				continue
 			}
+			slog.Info("job dequeued", "job_id", job.ID, "queue", job.Queue, "type", job.Type)
 			metrics.ActiveWorkers.Inc()
 			fn, err := wp.registry.Get(job.Type)
 			if err != nil {
 				wp.retryEngine.Handle(ctx, job, err.Error())
+				slog.Error("handler not found", "job_id", job.ID, "error", err)
 				metrics.ActiveWorkers.Dec()
 				continue
 			}
@@ -80,11 +83,13 @@ func (wp *WorkerPool) work() {
 			metrics.JobProcessingDuration.Observe(time.Since(start).Seconds())
 			if err != nil {
 				wp.retryEngine.Handle(ctx, job, err.Error()) // handler failed, retry/dead letter
+				slog.Error("job handler failed", "job_id", job.ID, "error", err)
 				metrics.JobsFailed.Inc()
 				metrics.ActiveWorkers.Dec()
 				continue
 			}
 			wp.store.Ack(ctx, job.ID)
+			slog.Info("job completed", "job_id", job.ID)
 			metrics.JobsProcessed.Inc()
 			metrics.ActiveWorkers.Dec()
 		}

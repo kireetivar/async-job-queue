@@ -21,7 +21,7 @@ services:
       - REDIS_DB=0
       - SERVER_PORT=:9090
       - WORKER_COUNT=10
-      - QUEUES=emails,mobile
+      - QUEUES=email,mobile
       - SCHEDULE_INTERNAL_SEC=5
     depends_on:
       redis:

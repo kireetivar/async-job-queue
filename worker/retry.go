@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"math/rand"
 	"time"
@@ -30,10 +31,12 @@ func (re *RetryEngine) Handle(ctx context.Context, job *models.Job, jobErr strin
 	}
 	job.RetryCount++
 	job.Error = jobErr
+	slog.Warn("retrying job", "job_id", job.ID, "attempt", job.RetryCount, "error", jobErr)
 	metrics.JobsRetried.Inc()
 
 	if job.RetryCount >= job.MaxRetries {
 		metrics.JobsDead.Inc()
+		slog.Error("job moved to DLQ", "job_id", job.ID, "error", jobErr)
 		return re.store.MoveToDeadLetter(ctx, job)
 	}
 

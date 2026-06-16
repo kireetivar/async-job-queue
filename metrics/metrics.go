@@ -5,7 +5,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-var(
+var (
 	JobsEnqueued = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "jobs_enqueued_total",
 		Help: "Total numbers of jobs enqueued",
