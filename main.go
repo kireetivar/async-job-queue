@@ -45,7 +45,12 @@ func main() {
 
 	rs := store.NewRedisStore(rdb)
 
-	router := api.NewRouter(rs)
+	router := api.NewRouter(rs, &api.ValidationConfig{
+		AllowedQueues: cfg.Queues,
+		AllowedTypes:  []string{"test_job"}, //TODO: Need way better handler createtion and configuration flow
+		MaxPriority:   cfg.MaxPriority,
+		MaxRetries:    cfg.MaxRetries,
+	})
 
 	retryEngine := worker.NewRetryEngine(rs, worker.JitterRetryStrategy)
 

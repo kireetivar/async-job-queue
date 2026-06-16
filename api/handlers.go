@@ -2,7 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -46,6 +48,34 @@ func (r *Router) createJob(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if !slices.Contains(r.validate.AllowedQueues, req.Queue) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid queue: %s, allowed: %v", req.Queue, r.validate.AllowedQueues)})
+		return
+	}
+	if !slices.Contains(r.validate.AllowedTypes, req.Type) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid type: %s. allowed %v", req.Type, r.validate.AllowedTypes)})
+		return
+	}
+	if req.MaxRetries > r.validate.MaxRetries {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("max_retries exceeds limit: got %d, max %d", req.MaxRetries, r.validate.MaxRetries)})
+		return
+	}
+	if req.Priority > r.validate.MaxPriority {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("priority exceeds limit: got %d,max got %d", req.Priority, r.validate.MaxPriority)})
+		return
+	}
+	if req.Priority < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("priority must be >=0, got %d", req.Priority)})
+		return
+	}
+	if req.MaxRetries < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("max_retries must be >= 0, got %d", req.MaxRetries)})
+		return
+	}
+	if req.Payload == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "payload is required"})
+		return
+	}
 
 	jobId := uuid.New().String()
 
@@ -81,6 +111,11 @@ func (r *Router) createJob(c *gin.Context) {
 // @Router       /jobs/{id} [get]
 func (r *Router) getJob(c *gin.Context) {
 	jobId := c.Param("id")
+	err := uuid.Validate(jobId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job ID: must be a valid UUID"})
+		return
+	}
 	job, err := r.store.GetJob(c, jobId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -105,7 +140,12 @@ func (r *Router) getJob(c *gin.Context) {
 // @Router       /jobs/{id} [delete]
 func (r *Router) deleteJob(c *gin.Context) {
 	jobId := c.Param("id")
-	err := r.store.CancelJob(c, jobId)
+	err := uuid.Validate(jobId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job ID: must be a valid UUID"})
+		return
+	}
+	err = r.store.CancelJob(c, jobId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -143,6 +183,10 @@ func (r *Router) getQueues(c *gin.Context) {
 // @Router       /queues/{name}/resume [post]
 func (r *Router) resumeQueue(c *gin.Context) {
 	name := c.Param("name")
+	if !slices.Contains(r.validate.AllowedQueues, name) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid queue: %s, allowed: %v", name, r.validate.AllowedQueues)})
+		return
+	}
 	err := r.store.ResumeQueue(c, name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -163,6 +207,10 @@ func (r *Router) resumeQueue(c *gin.Context) {
 // @Router       /queues/{name}/pause [post]
 func (r *Router) pauseQueue(c *gin.Context) {
 	name := c.Param("name")
+	if !slices.Contains(r.validate.AllowedQueues, name) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid queue: %s, allowed: %v", name, r.validate.AllowedQueues)})
+		return
+	}
 	err := r.store.PauseQueue(c, name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -203,6 +251,11 @@ func (r *Router) getHealth(c *gin.Context) {
 // @Router       /jobs/{id}/retry [post]
 func (r *Router) retryJob(c *gin.Context) {
 	jobId := c.Param("id")
+	err := uuid.Validate(jobId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job ID: must be a valid UUID"})
+		return
+	}
 	job, err := r.store.GetJob(c, jobId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

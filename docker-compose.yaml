@@ -23,6 +23,8 @@ services:
       - WORKER_COUNT=10
       - QUEUES=email,mobile
       - SCHEDULE_INTERNAL_SEC=5
+      - MAX_PRIORITY=10
+      - MAX_RETRIES=10
     depends_on:
       redis:
         condition: service_healthy

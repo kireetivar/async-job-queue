@@ -17,6 +17,8 @@ type Config struct {
 	WorkerCount      int
 	Queues           []string
 	ScheduleInterval time.Duration
+	MaxPriority      int
+	MaxRetries       int
 }
 
 func Load() Config {
@@ -29,6 +31,8 @@ func Load() Config {
 		WorkerCount:      getEnvInt("WORKER_COUNT", 10),
 		Queues:           strings.Split(getEnv("QUEUES", "email,mobile"), ","),
 		ScheduleInterval: time.Duration(getEnvInt("SCHEDULE_INTERVAL_SEC", 5)) * time.Second,
+		MaxPriority:      getEnvInt("MAX_PRIORITY", 10),
+		MaxRetries:       getEnvInt("MAX_RETRIES", 10),
 	}
 }
 

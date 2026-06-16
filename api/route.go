@@ -9,14 +9,23 @@ import (
 )
 
 type Router struct {
-	store  store.Store
-	engine *gin.Engine
+	store    store.Store
+	engine   *gin.Engine
+	validate *ValidationConfig
 }
 
-func NewRouter(store store.Store) *Router {
+type ValidationConfig struct {
+	AllowedQueues []string
+	AllowedTypes  []string
+	MaxPriority   int
+	MaxRetries    int
+}
+
+func NewRouter(store store.Store, vc *ValidationConfig) *Router {
 	r := &Router{
-		store:  store,
-		engine: gin.Default(),
+		store:    store,
+		engine:   gin.Default(),
+		validate: vc,
 	}
 
 	// Swagger UI served at /swagger/index.html
