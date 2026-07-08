@@ -28,7 +28,21 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    
+  
+  prometheus:
+    image: "prom/prometheus:latest"
+    ports: 
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+  
+  grafana:
+    image: "grafana/grafana:latest"
+    ports: 
+      - "3000:3000"
+    depends_on:
+      - prometheus
+  
   redisinsight:
     image: redis/redisinsight:latest
     ports:
