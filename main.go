@@ -2,17 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/kireetivar/async-job-queue/api"
 	"github.com/kireetivar/async-job-queue/config"
 	_ "github.com/kireetivar/async-job-queue/docs"
-	"github.com/kireetivar/async-job-queue/models"
+	"github.com/kireetivar/async-job-queue/handlers"
 	"github.com/kireetivar/async-job-queue/scheduler"
 	"github.com/kireetivar/async-job-queue/store"
 	"github.com/kireetivar/async-job-queue/worker"
@@ -44,25 +42,23 @@ func main() {
 	})
 
 	rs := store.NewRedisStore(rdb)
+	handlerRegistry := worker.NewHandlerRegistry()
+
+	if err := handlers.RegisterAll(handlerRegistry, handlers.Config{
+		WebHookSecret: cfg.WebHookSecret,
+	}); err != nil {
+		slog.Error("failed to register handlers", "error", err)
+		os.Exit(1)
+	}
 
 	router := api.NewRouter(rs, &api.ValidationConfig{
 		AllowedQueues: cfg.Queues,
-		AllowedTypes:  []string{"test_job"}, //TODO: Need way better handler createtion and configuration flow
+		AllowedTypes:  handlerRegistry.Types(),
 		MaxPriority:   cfg.MaxPriority,
 		MaxRetries:    cfg.MaxRetries,
 	})
 
 	retryEngine := worker.NewRetryEngine(rs, worker.JitterRetryStrategy)
-
-	handlerRegistry := worker.NewHandlerRegistry()
-	err := handlerRegistry.Register("test_job", func(ctx context.Context, job *models.Job) error {
-		time.Sleep(10 * time.Second)
-		slog.Info("processing job", "job_id", job.ID, "type", job.Type, "payload", string(job.Payload))
-		return nil
-	})
-	if err != nil {
-		fmt.Printf("Unable to register handler `test_job`: %v", err)
-	}
 
 	wp := worker.NewWorkerPool(cfg.WorkerCount, cfg.Queues, rs, handlerRegistry, &retryEngine)
 

@@ -44,6 +44,16 @@ func (hr *HandleRegistry) Get(jobType string) (HandleFunc, error) {
 	return fn, nil
 }
 
+func (hr *HandleRegistry) Types() []string {
+	hr.rw.RLock()
+	defer hr.rw.RUnlock()
+	s := make([]string, 0, len(hr.mp))
+	for k := range hr.mp {
+		s = append(s, k)
+	}
+	return s
+}
+
 func NewHandlerRegistry() *HandleRegistry {
 	return &HandleRegistry{
 		mp: make(map[string]HandleFunc),

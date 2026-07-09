@@ -145,6 +145,23 @@ paths:
       summary: Queue health dashboard
       tags:
       - monitoring
+  /health:
+    get:
+      description: Returns OK if the service is alive and can reach Redis.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.StatusResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Health check
+      tags:
+      - monitoring
   /jobs:
     post:
       consumes:

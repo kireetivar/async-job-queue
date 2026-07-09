@@ -19,6 +19,7 @@ type Config struct {
 	ScheduleInterval time.Duration
 	MaxPriority      int
 	MaxRetries       int
+	WebHookSecret    string
 }
 
 func Load() Config {
@@ -33,6 +34,7 @@ func Load() Config {
 		ScheduleInterval: time.Duration(getEnvInt("SCHEDULE_INTERVAL_SEC", 5)) * time.Second,
 		MaxPriority:      getEnvInt("MAX_PRIORITY", 10),
 		MaxRetries:       getEnvInt("MAX_RETRIES", 10),
+		WebHookSecret:    getEnv("WEBHOOK_SECRET", ""),
 	}
 }
 
