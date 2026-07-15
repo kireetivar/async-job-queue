@@ -32,3 +32,6 @@ go.work.sum
 .vscode/
 
 bin/
+# Local planning notes (not for remote)
+PRODUCTION_PLAN.md
+
