@@ -31,6 +31,21 @@ var (
 		Help: "Total number of dead jobs",
 	})
 
+	WebhookRequests = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "webhook_requests_total",
+		Help: "Total webhook HTTP calls made",
+	})
+
+	WebhookFailures = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "webhook_failures_total",
+		Help: "Webhook calls failed",
+	})
+
+	WebhookDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name: "webhook_duration_seconds",
+		Help: "Time taken for webhook HTTP calls",
+	})
+
 	JobProcessingDuration = promauto.NewHistogram(prometheus.HistogramOpts{
 		Name: "jobs_processed_duration_seconds",
 		Help: "Time taken for jobs to get processed in seconds",
