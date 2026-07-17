@@ -19,4 +19,5 @@ type Store interface {
 	ResumeQueue(ctx context.Context, name string) error
 	GetQueueStatus(ctx context.Context) ([]models.QueueStats, error)
 	IsQueuePaused(ctx context.Context, name string) (bool, error)
+	Ping(ctx context.Context) error
 }

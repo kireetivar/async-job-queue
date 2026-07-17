@@ -129,3 +129,7 @@ func (m *MockStore) IsQueuePaused(ctx context.Context, name string) (bool, error
 	}
 	return m.IsQueuePausedbool, m.IsQueuePausedError
 }
+
+func (m *MockStore) Ping(ctx context.Context) error {
+    return nil
+}

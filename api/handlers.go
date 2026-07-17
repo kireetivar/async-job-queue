@@ -291,3 +291,22 @@ func (r *Router) retryJob(c *gin.Context) {
 func (r *Router) healthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
+
+// readyCheck performs a basic readiness check.
+// @Summary      Readiness check
+// @Description  Returns OK if the service is alive and can reach Redis.
+// @Tags         monitoring
+// @Produce      json
+// @Success      200  {object}  StatusResponse
+// @Failure      503  {object}  ErrorResponse
+// @Router       /ready [get]
+func (r *Router) readyCheck(c *gin.Context) {
+	if err := r.store.Ping(c.Request.Context()); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status": "unavailable",
+			"error": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ready"})
+}

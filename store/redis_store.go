@@ -358,3 +358,8 @@ func (s *RedisStore) IsQueuePaused(ctx context.Context, name string) (bool, erro
 	val, err := s.client.Exists(ctx, "paused:"+name).Result()
 	return val > 0, err
 }
+
+
+func (s *RedisStore) Ping(ctx context.Context) error {
+    return s.client.Ping(ctx).Err()
+}

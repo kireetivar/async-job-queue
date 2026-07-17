@@ -31,6 +31,7 @@ func NewRouter(store store.Store, vc *ValidationConfig) *Router {
 	// Swagger UI served at /swagger/index.html
 	r.engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.engine.GET("/health", r.healthCheck)
+	r.engine.GET("/ready", r.readyCheck)
 	r.engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	v1 := r.engine.Group("/api/v1")
